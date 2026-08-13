@@ -1,0 +1,1 @@
+Could have done in graphql as well but it's not worth it.
