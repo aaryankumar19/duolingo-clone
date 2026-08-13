@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Session, User
+from .models import Session, User, UserCourse
 
 
 @admin.register(User)
@@ -54,3 +54,29 @@ class SessionAdmin(admin.ModelAdmin):
         "created_at",
     )
     ordering = ("-created_at",)
+
+
+@admin.register(UserCourse)
+class UserCourseAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "course",
+        "updated_at",
+        "created_at",
+    )
+    search_fields = (
+        "user__username",
+        "user__email",
+        "course__title",
+    )
+    list_filter = (
+        "updated_at",
+        "created_at",
+    )
+    readonly_fields = (
+        "id",
+        "created_at",
+        "updated_at",
+    )
+    ordering = ("-updated_at",)
+

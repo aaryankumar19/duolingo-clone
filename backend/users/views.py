@@ -4,7 +4,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 from common.exceptions import ValidationException
 from common.jsonUtils import JsonUtilsMixin
-from .services import AuthService, SessionService
+from website.utils import require_auth
+from .services import AuthService, SessionService, UserService
 from .validators import LoginValidator, LogoutValidator, RegisterValidator
 
 
@@ -32,7 +33,7 @@ class RegisterView(JsonUtilsMixin, View):
                     "xp": user.xp,
                     "gems": user.gems,
                     "hearts": user.hearts,
-                    "auth_token": auth_token
+                    "auth_token": auth_token,
                 }
             },
             code="USER_REGISTERED",
@@ -64,7 +65,7 @@ class LoginView(JsonUtilsMixin, View):
                     "xp": user.xp,
                     "gems": user.gems,
                     "hearts": user.hearts,
-                    "auth_token": auth_token
+                    "auth_token": auth_token,
                 }
             },
             code="USER_LOGGED_IN",
@@ -101,5 +102,65 @@ class LogoutView(JsonUtilsMixin, View):
         return self._json_success(
             data={"cleared_all_sessions": clear_all},
             code="USER_LOGGED_OUT",
+            status=200,
+        )
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(require_auth, name="dispatch")
+class HeartRefillView(JsonUtilsMixin, View):
+
+    def post(self, request):
+        result = UserService.refill_hearts_with_gems(request.user)
+        return self._json_success(
+            data=result,
+            code="HEARTS_REFILLED",
+            status=200,
+        )
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(require_auth, name="dispatch")
+class ProfileView(JsonUtilsMixin, View):
+
+    def get(self, request):
+        profile_data = UserService.get_profile(request.user)
+        return self._json_success(
+            data=profile_data,
+            code="PROFILE_RETRIEVED",
+            status=200,
+        )
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(require_auth, name="dispatch")
+class ActivityTodayView(JsonUtilsMixin, View):
+
+    def get(self, request):
+        today_data = UserService.get_today_activity(request.user)
+        return self._json_success(
+            data=today_data,
+            code="TODAY_ACTIVITY_RETRIEVED",
+            status=200,
+        )
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(require_auth, name="dispatch")
+class ActivityHistoryView(JsonUtilsMixin, View):
+
+    def get(self, request):
+        days_param = request.GET.get("days", 7)
+        try:
+            days = int(days_param)
+            if days <= 0 or days > 365:
+                days = 7
+        except (ValueError, TypeError):
+            days = 7
+
+        history_data = UserService.get_activity_history(request.user, days=days)
+        return self._json_success(
+            data={"activities": history_data},
+            code="ACTIVITY_HISTORY_RETRIEVED",
             status=200,
         )

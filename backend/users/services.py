@@ -9,7 +9,12 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.utils import timezone
 
-from common.exceptions import AuthenticationException, ConflictException
+from common.exceptions import (
+    AuthenticationException,
+    ConflictException,
+    ValidationException,
+)
+from progress.models import UserUnitProgress
 from .models import DailyActivity, Session, User
 
 
@@ -43,7 +48,6 @@ class AuthService:
             ) from exc
 
         return user
-
 
     @staticmethod
     def authenticate(
@@ -120,6 +124,40 @@ class UserService:
         )
 
     @staticmethod
+    def refill_hearts_with_gems(user: User) -> dict:
+        """
+        Deducts 100 gems to refill hearts to max_hearts atomically.
+        """
+        with transaction.atomic():
+            user_refreshed = User.objects.select_for_update().get(pk=user.pk)
+
+            if user_refreshed.hearts >= user_refreshed.max_hearts:
+                raise ValidationException(
+                    "Your hearts are already full.",
+                    code="HEARTS_ALREADY_FULL",
+                    status_code=400,
+                )
+
+            if user_refreshed.gems < 100:
+                raise ValidationException(
+                    "You need at least 100 gems to refill hearts.",
+                    code="INSUFFICIENT_GEMS",
+                    status_code=400,
+                )
+
+            user_refreshed.gems = F("gems") - 100
+            user_refreshed.hearts = F("max_hearts")
+            user_refreshed.save(update_fields=["gems", "hearts", "updated_at"])
+
+            user_refreshed.refresh_from_db(fields=["gems", "hearts", "max_hearts"])
+
+            return {
+                "hearts": user_refreshed.hearts,
+                "max_hearts": user_refreshed.max_hearts,
+                "gems": user_refreshed.gems,
+            }
+
+    @staticmethod
     def update_streak(user: User) -> None:
         today = timezone.localdate()
 
@@ -190,6 +228,68 @@ class UserService:
             date=today,
         )
 
+    @staticmethod
+    def get_profile(user: User) -> dict:
+        completed_skills_count = UserUnitProgress.objects.filter(
+            user=user, is_completed=True
+        ).count()
+
+        return {
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "avatar_url": user.avatar_url,
+                "age": user.age,
+                "created_at": user.created_at.isoformat(),
+            },
+            "stats": {
+                "xp": user.xp,
+                "streak_count": user.streak_count,
+                "gems": user.gems,
+                "hearts": user.hearts,
+                "max_hearts": user.max_hearts,
+                "completed_skills_count": completed_skills_count,
+            },
+        }
+
+    @staticmethod
+    def get_today_activity(user: User) -> dict:
+        today = timezone.localdate()
+        activity = DailyActivity.objects.filter(user=user, date=today).first()
+        xp_gained = activity.xp_gained if activity else 0
+        xp_goal = 50
+
+        return {
+            "date": today.isoformat(),
+            "xp_gained": xp_gained,
+            "xp_goal": xp_goal,
+            "progress": round(min(xp_gained / xp_goal, 1.0), 2),
+            "goal_completed": xp_gained >= xp_goal,
+        }
+
+    @staticmethod
+    def get_activity_history(user: User, days: int = 7) -> list[dict]:
+        today = timezone.localdate()
+        start_date = today - timedelta(days=days - 1)
+        activities = DailyActivity.objects.filter(
+            user=user, date__gte=start_date, date__lte=today
+        ).order_by("date")
+
+        activity_map = {a.date: a.xp_gained for a in activities}
+
+        res = []
+        curr = start_date
+        while curr <= today:
+            res.append(
+                {
+                    "date": curr.isoformat(),
+                    "xp_gained": activity_map.get(curr, 0),
+                }
+            )
+            curr += timedelta(days=1)
+        return res
+
 
 class SessionService:
 
@@ -244,4 +344,3 @@ class SessionService:
     def revoke_all_for_user(user: User) -> None:
         now = timezone.now()
         Session.objects.filter(user=user, revoked_at__isnull=True).update(revoked_at=now)
-

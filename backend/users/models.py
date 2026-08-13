@@ -1,10 +1,12 @@
 import uuid
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
 
 class User(models.Model):
+
     """
     Application user model.
     """
@@ -183,4 +185,58 @@ class DailyActivity(models.Model):
             f"{self.user.username} - "
             f"{self.date}: "
             f"{self.xp_gained} XP"
+        )
+
+
+class UserCourse(models.Model):
+    """
+    Associates users with the courses they have selected.
+
+    A user may select multiple courses.
+    The UserCourse with the most recent updated_at timestamp
+    is considered the user's currently active course.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="user_courses",
+    )
+
+    course = models.ForeignKey(
+        "courses.Course",
+        on_delete=models.CASCADE,
+        related_name="user_courses",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Last time the user selected/activated this course.",
+    )
+
+    class Meta:
+        db_table = "user_courses"
+        ordering = ["-updated_at"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "course"],
+                name="unique_user_course",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.user.username} - "
+            f"{self.course.title}"
         )

@@ -1,10 +1,14 @@
-from datetime import timedelta
 import json
+from datetime import timedelta
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from common.exceptions import AuthenticationException, ConflictException, ValidationException
+from common.exceptions import (
+    AuthenticationException,
+    ConflictException,
+    ValidationException,
+)
 from .models import DailyActivity, Session, User
 from .services import AuthService, SessionService, UserService
 from .validators import LoginValidator, LogoutValidator, RegisterValidator
@@ -98,7 +102,9 @@ class UserServiceTestCase(TestCase):
     def test_session_services(self):
         raw_token = SessionService.create_session(self.user, ttl_days=7)
         self.assertIsNotNone(raw_token)
-        session = Session.objects.get(session_token_hash=SessionService.hash_token(raw_token))
+        session = Session.objects.get(
+            session_token_hash=SessionService.hash_token(raw_token)
+        )
         self.assertEqual(session.user, self.user)
 
         # Check validity
@@ -170,7 +176,9 @@ class AuthArchitectureTestCase(TestCase):
         self.assertEqual(response.status_code, 201)
         res_data = response.json()
         self.assertEqual(res_data["code"], "USER_REGISTERED")
-        self.assertTrue(res_data["data"]["user"]["username"].startswith("apinetuser_"))
+        self.assertTrue(
+            res_data["data"]["user"]["username"].startswith("apinetuser_")
+        )
         self.assertIn("auth_token", res_data["data"]["user"])
 
     def test_register_view_api_validation_error(self):
@@ -294,11 +302,15 @@ class AuthArchitectureTestCase(TestCase):
         self.assertFalse(res_data["data"]["cleared_all_sessions"])
 
         # Token 1 is now invalid/revoked
-        session1 = Session.objects.get(session_token_hash=SessionService.hash_token(token1))
+        session1 = Session.objects.get(
+            session_token_hash=SessionService.hash_token(token1)
+        )
         self.assertFalse(SessionService.is_valid(session1))
 
         # Token 2 remains valid
-        session2 = Session.objects.get(session_token_hash=SessionService.hash_token(token2))
+        session2 = Session.objects.get(
+            session_token_hash=SessionService.hash_token(token2)
+        )
         self.assertTrue(SessionService.is_valid(session2))
 
     def test_logout_view_all_sessions(self):
@@ -325,8 +337,12 @@ class AuthArchitectureTestCase(TestCase):
         self.assertTrue(res_data["data"]["cleared_all_sessions"])
 
         # Both sessions are now revoked
-        session1 = Session.objects.get(session_token_hash=SessionService.hash_token(token1))
-        session2 = Session.objects.get(session_token_hash=SessionService.hash_token(token2))
+        session1 = Session.objects.get(
+            session_token_hash=SessionService.hash_token(token1)
+        )
+        session2 = Session.objects.get(
+            session_token_hash=SessionService.hash_token(token2)
+        )
         self.assertFalse(SessionService.is_valid(session1))
         self.assertFalse(SessionService.is_valid(session2))
 
@@ -341,3 +357,60 @@ class AuthArchitectureTestCase(TestCase):
         self.assertEqual(response.status_code, 401)
         res_data = response.json()
         self.assertEqual(res_data["error"]["code"], "INVALID_CREDENTIALS")
+
+
+class HeartsProfileActivityTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create(
+            email="hearts@example.com",
+            username="hearts_user",
+            gems=500,
+            hearts=3,
+            max_hearts=5,
+        )
+        self.token = SessionService.create_session(self.user)
+        self.auth_headers = {"HTTP_AUTHORIZATION": f"Bearer {self.token}"}
+
+    def test_heart_refill_success(self):
+        url = reverse("hearts:refill_gems")
+        response = self.client.post(url, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        res_data = response.json()
+        self.assertEqual(res_data["data"]["hearts"], 5)
+        self.assertEqual(res_data["data"]["gems"], 400)
+
+    def test_heart_refill_already_full(self):
+        self.user.hearts = 5
+        self.user.save()
+        url = reverse("hearts:refill_gems")
+        response = self.client.post(url, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        res_data = response.json()
+        self.assertEqual(res_data["error"]["code"], "HEARTS_ALREADY_FULL")
+
+    def test_heart_refill_insufficient_gems(self):
+        self.user.gems = 50
+        self.user.save()
+        url = reverse("hearts:refill_gems")
+        response = self.client.post(url, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        res_data = response.json()
+        self.assertEqual(res_data["error"]["code"], "INSUFFICIENT_GEMS")
+
+    def test_profile_api(self):
+        url = reverse("profile:detail")
+        response = self.client.get(url, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        res_data = response.json()
+        self.assertEqual(res_data["data"]["user"]["username"], "hearts_user")
+
+    def test_activity_today_and_history_api(self):
+        url_today = reverse("activity:today")
+        response_today = self.client.get(url_today, **self.auth_headers)
+        self.assertEqual(response_today.status_code, 200)
+
+        url_hist = reverse("activity:history")
+        response_hist = self.client.get(url_hist, **self.auth_headers)
+        self.assertEqual(response_hist.status_code, 200)
+        self.assertEqual(len(response_hist.json()["data"]["activities"]), 7)

@@ -1,5 +1,17 @@
 from django.contrib import admin
-from .models import Course, Skill, Unit
+from .models import Character, Course, Section, Unit, UnitIcon
+
+
+@admin.register(Character)
+class CharacterAdmin(admin.ModelAdmin):
+    list_display = ("name", "image_url")
+    search_fields = ("name",)
+
+
+@admin.register(UnitIcon)
+class UnitIconAdmin(admin.ModelAdmin):
+    list_display = ("name", "icon_url")
+    search_fields = ("name",)
 
 
 @admin.register(Course)
@@ -9,15 +21,16 @@ class CourseAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "source_language", "target_language")
 
 
-@admin.register(Unit)
-class UnitAdmin(admin.ModelAdmin):
+@admin.register(Section)
+class SectionAdmin(admin.ModelAdmin):
     list_display = ("title", "course", "order", "color_hex", "created_at")
     search_fields = ("title", "course__title")
     list_filter = ("course",)
 
 
-@admin.register(Skill)
-class SkillAdmin(admin.ModelAdmin):
-    list_display = ("title", "unit", "order", "total_lessons", "created_at")
-    search_fields = ("title", "unit__title")
-    list_filter = ("unit__course", "unit")
+@admin.register(Unit)
+class UnitAdmin(admin.ModelAdmin):
+    list_display = ("title", "section", "unit_type", "order", "created_at")
+    search_fields = ("title", "section__title")
+    list_filter = ("section__course", "section", "unit_type")
+
