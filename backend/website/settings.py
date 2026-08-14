@@ -23,10 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+import dj_database_url
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
 ALLOWED_HOSTS = ["*"]
 
@@ -92,10 +94,11 @@ WSGI_APPLICATION = 'website.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 
@@ -128,12 +131,15 @@ CORS_ALLOW_ALL_ORIGINS = True  # Allow requests from any origin
 CORS_ALLOWED_ORIGINS = []  # Not needed if CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True  # Required for cookies/authentication
 CSRF_TRUSTED_ORIGINS = [
-    "http://*",
-    "https://*",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:8000",
+    "https://*.onrender.com",
 ]
 CSRF_COOKIE_SECURE = False  # Allow insecure CSRF cookies (for testing)
 CSRF_COOKIE_SAMESITE = "None"  # Required for cross-origin cookies
 CORS_ALLOW_HEADERS = ["*"]
+
 
 
 # Static files (CSS, JavaScript, Images)
