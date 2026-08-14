@@ -7,6 +7,7 @@ import { playSound } from '@/lib/sounds/sound';
 
 import { lessonApi } from '@/lib/api/lesson/api';
 import { useLessonStore } from '@/store/lesson-store';
+import { useAuthStore } from '@/store/use-auth-store';
 
 interface Props {
   exercise: MatchPairsExercise;
@@ -64,15 +65,24 @@ export const MatchPairs: React.FC<Props> = ({ exercise, onChange, disabled }) =>
         lessonApi
           .submitExercise(exercise.id, { single_pair: { left: leftVal, right: rightVal } })
           .then((res) => {
-            useLessonStore.getState().applySubmitResult({
-              isCorrect: false,
-              feedbackMessage: res.feedback?.message || 'Not quite.',
-              correctAnswer: '',
-              heartsRemaining: res.hearts_remaining ?? 0,
-              isOutOfHearts: res.is_out_of_hearts ?? false,
-            });
+            // Update hearts in stores without triggering the full feedback bar overlay
+            useLessonStore.setState({ hearts: res.hearts_remaining ?? 0 });
+            useAuthStore.getState().updateUser({ hearts: res.hearts_remaining ?? 0 });
+
+            if (res.is_out_of_hearts) {
+              useLessonStore.setState({ isOutOfHearts: true, isFeedbackVisible: false });
+            }
           })
           .catch((err) => {
+            // Fallback for local mismatch heart deduction if API fails
+            const currentHearts = useLessonStore.getState().hearts;
+            const newHearts = Math.max(0, currentHearts - 1);
+            useLessonStore.setState({ hearts: newHearts });
+            useAuthStore.getState().updateUser({ hearts: newHearts });
+
+            if (newHearts <= 0) {
+              useLessonStore.setState({ isOutOfHearts: true, isFeedbackVisible: false });
+            }
             console.error('Failed to submit pair mismatch:', err);
           });
 

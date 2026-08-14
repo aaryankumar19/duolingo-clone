@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { learningApi } from '@/lib/api/learning/api';
 import { BackendCourse } from '@/types/learning';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   ES,
   FR,
@@ -76,6 +77,14 @@ export default function CoursesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => {
+      setToastMsg((current) => (current === msg ? null : current));
+    }, 3000);
+  };
 
   const { data: dbCourses } = useQuery({
     queryKey: ['courses'],
@@ -117,7 +126,14 @@ export default function CoursesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#131f24] text-white flex flex-col p-6 sm:p-10 font-sans select-none">
+    <div className="min-h-screen bg-[#131f24] text-white flex flex-col p-6 sm:p-10 font-sans select-none relative">
+      {/* Toast Banner */}
+      {toastMsg && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#202f36] border-2 border-[#1cb0f6] text-[#1cb0f6] px-6 py-3 rounded-2xl font-extrabold text-xs tracking-widest uppercase shadow-2xl animate-bounce">
+          ✨ {toastMsg}
+        </div>
+      )}
+
       {/* Container */}
       <div className="w-full max-w-5xl mx-auto flex flex-col">
         {/* Header Bar */}
@@ -126,7 +142,10 @@ export default function CoursesPage() {
             Courses for English Speakers
           </h1>
 
-          <div className="flex items-center gap-2 text-xs font-black text-[#52656d] uppercase tracking-wider cursor-pointer hover:text-white transition">
+          <div
+            onClick={() => triggerToast('Language selection is coming soon!')}
+            className="flex items-center gap-2 text-xs font-black text-[#52656d] uppercase tracking-wider cursor-pointer hover:text-white transition"
+          >
             <span>I SPEAK ENGLISH</span>
             <ChevronDown className="w-4 h-4" />
           </div>
@@ -135,6 +154,7 @@ export default function CoursesPage() {
         {/* Grid of Languages matching Image 2 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
           {COURSE_CATALOG.map((item) => {
+            const isSpanish = item.id === 'es';
             const isActive =
               activeDbCourse &&
               ((activeDbCourse.target_language && activeDbCourse.target_language.toLowerCase() === item.title.toLowerCase()) ||
@@ -143,43 +163,71 @@ export default function CoursesPage() {
 
             const isSelectingThis = selectingId === item.id;
 
+            const handleClick = () => {
+              if (!isSpanish) {
+                triggerToast(`${item.title} course is coming soon!`);
+                return;
+              }
+              handleCourseClick(item);
+            };
+
             return (
               <div
                 key={item.id}
-                onClick={() => handleCourseClick(item)}
-                className={`relative bg-[#18262d] border-2 rounded-3xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 group shadow-md ${
+                onClick={handleClick}
+                className={cn(
+                  'relative bg-[#18262d] border-2 rounded-3xl p-6 flex flex-col items-center justify-center text-center transition-all duration-200 group shadow-md',
                   isActive
                     ? 'border-[#58cc02] bg-[#202f36]'
-                    : 'border-[#2b3840] hover:border-[#37464f] hover:bg-[#202f36]'
-                }`}
+                    : isSpanish
+                    ? 'border-[#2b3840] hover:border-[#37464f] hover:bg-[#202f36] cursor-pointer'
+                    : 'border-[#2b3840]/40 opacity-70 cursor-pointer hover:bg-[#18262d]'
+                )}
               >
-                {/* Active Checkmark Badge */}
-                {isActive && (
-                  <div className="absolute top-3 right-3 w-6 h-6 bg-[#58cc02] rounded-lg flex items-center justify-center text-white shadow-sm">
-                    <Check className="w-4 h-4 stroke-[3]" />
+                {/* Coming Soon Badge Overlay */}
+                {!isSpanish && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <span className="bg-[#2b3840]/90 text-[#778e9a] font-extrabold text-[10px] tracking-wider uppercase px-2.5 py-1.5 rounded-xl border border-[#37464f] shadow-md group-hover:bg-[#37464f] group-hover:text-white transition-colors">
+                      COMING SOON
+                    </span>
                   </div>
                 )}
 
-                {/* Flag / Icon */}
-                <div className="mb-4 transform group-hover:scale-105 transition-transform">
-                  <RenderCourseIcon flagType={item.flagType} />
-                </div>
-
-                {/* Title */}
-                <h3 className="text-base font-extrabold text-white mb-1 leading-snug">
-                  {item.title}
-                </h3>
-
-                {/* Learner Count */}
-                <p className="text-xs font-bold text-[#778e9a]">
-                  {isSelectingThis ? (
-                    <span className="flex items-center gap-1 text-[#58cc02]">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Selecting...
-                    </span>
-                  ) : (
-                    item.learners
+                {/* Card Contents */}
+                <div
+                  className={cn(
+                    'flex flex-col items-center justify-center w-full',
+                    !isSpanish && 'blur-[2px] select-none pointer-events-none'
                   )}
-                </p>
+                >
+                  {/* Active Checkmark Badge */}
+                  {isActive && (
+                    <div className="absolute top-3 right-3 w-6 h-6 bg-[#58cc02] rounded-lg flex items-center justify-center text-white shadow-sm">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                  )}
+
+                  {/* Flag / Icon */}
+                  <div className="mb-4 transform group-hover:scale-105 transition-transform">
+                    <RenderCourseIcon flagType={item.flagType} />
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-base font-extrabold text-white mb-1 leading-snug">
+                    {item.title}
+                  </h3>
+
+                  {/* Learner Count */}
+                  <p className="text-xs font-bold text-[#778e9a]">
+                    {isSelectingThis ? (
+                      <span className="flex items-center gap-1 text-[#58cc02]">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Selecting...
+                      </span>
+                    ) : (
+                      item.learners
+                    )}
+                  </p>
+                </div>
               </div>
             );
           })}

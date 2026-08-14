@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/use-auth-store';
+import { authApi } from '@/lib/api/auth/api';
 import Image from 'next/image';
 
 interface AuthGuardProps {
@@ -17,6 +18,12 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      authApi.getProfile().catch((err) => console.error('Failed to sync profile:', err));
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

@@ -22,9 +22,11 @@ export function useLesson(skillId: string) {
 
   useEffect(() => {
     if (query.data) {
-      startLesson(query.data, hearts);
+      const currentHearts = useAuthStore.getState().user?.hearts ?? 5;
+      startLesson(query.data, currentHearts);
     }
-  }, [query.data, startLesson, hearts]);
+  }, [query.data, startLesson]);
 
   return query;
 }
+
