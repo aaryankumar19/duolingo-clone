@@ -9,6 +9,8 @@ export interface BackendUser {
   xp: number;
   gems: number;
   hearts: number;
+  streak?: number;
+  streak_count?: number;
   auth_token: string;
 }
 
@@ -28,7 +30,8 @@ export const authApi = {
     });
     const user = res.data.user;
     if (user?.auth_token) {
-      useAuthStore.getState().setAuth(user, user.auth_token);
+      const streak = user.streak ?? user.streak_count ?? 0;
+      useAuthStore.getState().setAuth({ ...user, streak }, user.auth_token);
     }
     return user;
   },
@@ -40,10 +43,12 @@ export const authApi = {
     });
     const user = res.data.user;
     if (user?.auth_token) {
-      useAuthStore.getState().setAuth(user, user.auth_token);
+      const streak = user.streak ?? user.streak_count ?? 0;
+      useAuthStore.getState().setAuth({ ...user, streak }, user.auth_token);
     }
     return user;
   },
+
 
   logout: async (): Promise<void> => {
     try {

@@ -41,19 +41,31 @@ class ExerciseAnswerService:
         expected_pairs = (
             correct_spec.get("pairs") if isinstance(correct_spec, dict) else correct_spec
         )
+        if not isinstance(expected_pairs, dict):
+            expected_pairs = {}
+
+        norm_expected = {
+            cls._normalize_string(k): cls._normalize_string(v)
+            for k, v in expected_pairs.items()
+        }
+
+        # Handle single pair mismatch evaluation from frontend
+        if isinstance(user_answer, dict) and "single_pair" in user_answer:
+            sp = user_answer.get("single_pair", {})
+            left_val = cls._normalize_string(sp.get("left", ""))
+            right_val = cls._normalize_string(sp.get("right", ""))
+            is_valid = norm_expected.get(left_val) == right_val
+            return is_valid, str(expected_pairs)
+
         actual_pairs = (
             user_answer.get("pairs")
             if isinstance(user_answer, dict) and "pairs" in user_answer
             else user_answer
         )
 
-        if not isinstance(expected_pairs, dict) or not isinstance(actual_pairs, dict):
+        if not isinstance(actual_pairs, dict):
             return False, str(expected_pairs)
 
-        norm_expected = {
-            cls._normalize_string(k): cls._normalize_string(v)
-            for k, v in expected_pairs.items()
-        }
         norm_actual = {
             cls._normalize_string(k): cls._normalize_string(v)
             for k, v in actual_pairs.items()

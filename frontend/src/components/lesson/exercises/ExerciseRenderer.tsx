@@ -46,7 +46,7 @@ export const ExerciseRenderer: React.FC<Props> = ({
       return (
         <MatchPairs
           exercise={exercise}
-          onChange={(isComplete) => onAnswerChange(isComplete ? 'complete' : null)}
+          onChange={(res) => onAnswerChange(res)}
           disabled={disabled}
         />
       );

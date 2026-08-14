@@ -17,8 +17,7 @@ export default function AppLayout({
 
         {/* Main Content Area */}
         <div className="flex-1 md:pl-64 flex flex-col min-h-screen pb-20 md:pb-0 bg-[#131f24]">
-          <AppHeader />
-          <main className="flex-1 w-full mx-auto px-4 sm:px-6 py-6">
+          <main className="flex-1 w-full max-w-[1056px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
             {children}
           </main>
           <MobileNav />

@@ -5,9 +5,12 @@ import { MatchPairsExercise } from '@/types/lesson';
 import { cn } from '@/lib/utils';
 import { playSound } from '@/lib/sounds/sound';
 
+import { lessonApi } from '@/lib/api/lesson/api';
+import { useLessonStore } from '@/store/lesson-store';
+
 interface Props {
   exercise: MatchPairsExercise;
-  onChange: (isComplete: boolean) => void;
+  onChange: (result: { pairs: Record<string, string> } | null) => void;
   disabled?: boolean;
 }
 
@@ -18,8 +21,8 @@ export const MatchPairs: React.FC<Props> = ({ exercise, onChange, disabled }) =>
   const [mismatched, setMismatched] = useState<boolean>(false);
 
   // Shuffle right side items deterministically
-  const leftItems = exercise.pairs.map((p) => p.left);
-  const rightItems = [...exercise.pairs.map((p) => p.right)].reverse();
+  const leftItems = (exercise.pairs || []).map((p) => p.left);
+  const rightItems = [...(exercise.pairs || []).map((p) => p.right)].reverse();
 
   const handleLeftClick = (val: string) => {
     if (disabled || matchedPairs.includes(val)) return;
@@ -47,11 +50,32 @@ export const MatchPairs: React.FC<Props> = ({ exercise, onChange, disabled }) =>
         setSelectedRight(null);
 
         if (updatedMatches.length >= exercise.pairs.length * 2) {
-          onChange(true);
+          const pairsMap = Object.fromEntries(
+            exercise.pairs.map((p) => [p.left, p.right])
+          );
+          onChange({ pairs: pairsMap });
         }
       } else {
         playSound('incorrect');
         setMismatched(true);
+
+        const leftVal = selectedLeft;
+        const rightVal = selectedRight;
+        lessonApi
+          .submitExercise(exercise.id, { single_pair: { left: leftVal, right: rightVal } })
+          .then((res) => {
+            useLessonStore.getState().applySubmitResult({
+              isCorrect: false,
+              feedbackMessage: res.feedback?.message || 'Not quite.',
+              correctAnswer: '',
+              heartsRemaining: res.hearts_remaining ?? 0,
+              isOutOfHearts: res.is_out_of_hearts ?? false,
+            });
+          })
+          .catch((err) => {
+            console.error('Failed to submit pair mismatch:', err);
+          });
+
         setTimeout(() => {
           setSelectedLeft(null);
           setSelectedRight(null);
@@ -59,7 +83,7 @@ export const MatchPairs: React.FC<Props> = ({ exercise, onChange, disabled }) =>
         }, 500);
       }
     }
-  }, [selectedLeft, selectedRight, exercise.pairs, matchedPairs, onChange]);
+  }, [selectedLeft, selectedRight, exercise.pairs, matchedPairs, onChange, exercise.id]);
 
   return (
     <div className="w-full max-w-xl mx-auto flex flex-col items-center">
@@ -80,8 +104,8 @@ export const MatchPairs: React.FC<Props> = ({ exercise, onChange, disabled }) =>
                 disabled={disabled || isMatched}
                 onClick={() => handleLeftClick(val)}
                 className={cn(
-                  'p-4 rounded-2xl border-2 border-b-4 font-bold text-base shadow-xs transition-all duration-150 text-center',
-                  isMatched && 'bg-gray-100 border-gray-200 text-gray-400 border-b-gray-200',
+                  'p-4 rounded-2xl border-2 border-b-4 font-bold text-base shadow-xs transition-all duration-150 text-center cursor-pointer',
+                  isMatched && 'bg-gray-100 border-gray-200 text-gray-400 border-b-gray-200 cursor-default',
                   isSelected && !mismatched && 'bg-sky-50 border-[#84d8ff] text-[#1CB0F6]',
                   isSelected && mismatched && 'bg-red-50 border-red-300 text-red-500 animate-shake',
                   !isMatched && !isSelected && 'bg-white border-gray-200 text-gray-800 hover:bg-gray-50'
@@ -105,8 +129,8 @@ export const MatchPairs: React.FC<Props> = ({ exercise, onChange, disabled }) =>
                 disabled={disabled || isMatched}
                 onClick={() => handleRightClick(val)}
                 className={cn(
-                  'p-4 rounded-2xl border-2 border-b-4 font-bold text-base shadow-xs transition-all duration-150 text-center',
-                  isMatched && 'bg-gray-100 border-gray-200 text-gray-400 border-b-gray-200',
+                  'p-4 rounded-2xl border-2 border-b-4 font-bold text-base shadow-xs transition-all duration-150 text-center cursor-pointer',
+                  isMatched && 'bg-gray-100 border-gray-200 text-gray-400 border-b-gray-200 cursor-default',
                   isSelected && !mismatched && 'bg-sky-50 border-[#84d8ff] text-[#1CB0F6]',
                   isSelected && mismatched && 'bg-red-50 border-red-300 text-red-500 animate-shake',
                   !isMatched && !isSelected && 'bg-white border-gray-200 text-gray-800 hover:bg-gray-50'

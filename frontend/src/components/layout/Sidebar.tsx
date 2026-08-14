@@ -22,8 +22,8 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside className="hidden md:flex flex-col w-64 h-screen border-r-2 border-[#2b3840] px-4 py-6 fixed left-0 top-0 bg-[#131f24] z-40 select-none">
-      <div>
-        {/* Official Duolingo SVG Logo */}
+      <div className="flex-1">
+        {/* Logo */}
         <Link href="/learn" className="flex items-center gap-3 px-4 mb-8">
           <Image
             src="/duolingo_logo.svg"
@@ -62,3 +62,4 @@ export const Sidebar: React.FC = () => {
     </aside>
   );
 };
+

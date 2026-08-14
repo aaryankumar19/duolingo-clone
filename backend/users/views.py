@@ -33,6 +33,8 @@ class RegisterView(JsonUtilsMixin, View):
                     "xp": user.xp,
                     "gems": user.gems,
                     "hearts": user.hearts,
+                    "streak": user.streak_count,
+                    "streak_count": user.streak_count,
                     "auth_token": auth_token,
                 }
             },
@@ -65,12 +67,15 @@ class LoginView(JsonUtilsMixin, View):
                     "xp": user.xp,
                     "gems": user.gems,
                     "hearts": user.hearts,
+                    "streak": user.streak_count,
+                    "streak_count": user.streak_count,
                     "auth_token": auth_token,
                 }
             },
             code="USER_LOGGED_IN",
             status=200,
         )
+
 
 
 @method_decorator(csrf_exempt, name="dispatch")

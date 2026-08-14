@@ -135,8 +135,8 @@ class CourseService:
                 is_first_unit = (s_idx == 0 and u_idx == 0)
                 if progress:
                     is_unlocked = progress.is_unlocked
-                    completed_lessons = progress.completed_lessons
-                    is_completed = progress.is_completed
+                    completed_lessons = min(progress.completed_lessons, total_lessons) if total_lessons > 0 else progress.completed_lessons
+                    is_completed = progress.is_completed or (total_lessons > 0 and completed_lessons >= total_lessons)
                     crown_level = progress.crown_level
                 else:
                     is_unlocked = is_first_unit

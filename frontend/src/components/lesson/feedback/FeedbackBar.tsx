@@ -11,9 +11,10 @@ interface Props {
   type: 'correct' | 'incorrect' | null;
   explanation?: string;
   onContinue: () => void;
+  heartsRemaining?: number;
 }
 
-export const FeedbackBar: React.FC<Props> = ({ type, explanation, onContinue }) => {
+export const FeedbackBar: React.FC<Props> = ({ type, explanation, onContinue, heartsRemaining }) => {
   if (!type) return null;
 
   const isCorrect = type === 'correct';
@@ -32,7 +33,7 @@ export const FeedbackBar: React.FC<Props> = ({ type, explanation, onContinue }) 
         {isCorrect ? (
           <CorrectFeedback explanation={explanation} />
         ) : (
-          <IncorrectFeedback explanation={explanation} />
+          <IncorrectFeedback explanation={explanation} heartsRemaining={heartsRemaining} />
         )}
 
         <button

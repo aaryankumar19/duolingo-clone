@@ -3,13 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Trophy, User, BookOpen } from 'lucide-react';
+import { Home, Trophy, User, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { href: '/learn', icon: Home, label: 'Learn' },
-  { href: '/lesson/1', icon: BookOpen, label: 'Practice' },
-  { href: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
+  { href: '/courses', icon: Globe, label: 'Courses' },
+  { href: '/leaderboard', icon: Trophy, label: 'Ranks' },
   { href: '/profile', icon: User, label: 'Profile' },
 ];
 

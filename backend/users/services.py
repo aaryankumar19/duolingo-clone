@@ -241,10 +241,24 @@ class UserService:
                 "email": user.email,
                 "avatar_url": user.avatar_url,
                 "age": user.age,
+                "xp": user.xp,
+                "gems": user.gems,
+                "hearts": user.hearts,
+                "streak": user.streak_count,
+                "streak_count": user.streak_count,
                 "created_at": user.created_at.isoformat(),
             },
+            "username": user.username,
+            "email": user.email,
+            "xp": user.xp,
+            "gems": user.gems,
+            "hearts": user.hearts,
+            "streak": user.streak_count,
+            "streak_count": user.streak_count,
+            "completed_skills_count": completed_skills_count,
             "stats": {
                 "xp": user.xp,
+                "streak": user.streak_count,
                 "streak_count": user.streak_count,
                 "gems": user.gems,
                 "hearts": user.hearts,
@@ -258,12 +272,14 @@ class UserService:
         today = timezone.localdate()
         activity = DailyActivity.objects.filter(user=user, date=today).first()
         xp_gained = activity.xp_gained if activity else 0
-        xp_goal = 50
+        xp_goal = 10
 
         return {
             "date": today.isoformat(),
             "xp_gained": xp_gained,
+            "xp_today": xp_gained,
             "xp_goal": xp_goal,
+            "daily_goal": xp_goal,
             "progress": round(min(xp_gained / xp_goal, 1.0), 2),
             "goal_completed": xp_gained >= xp_goal,
         }

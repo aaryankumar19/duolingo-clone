@@ -41,6 +41,13 @@ class LessonService:
                 "This skill/unit is locked.", code="UNIT_LOCKED", status_code=403
             )
 
+        if user.hearts <= 0:
+            raise ValidationException(
+                "You are out of hearts. Refill your hearts to start a lesson.",
+                code="OUT_OF_HEARTS",
+                status_code=403,
+            )
+
         completed_lesson_ids = set(
             UserLessonHistory.objects.filter(
                 user=user, lesson__unit=unit
@@ -190,14 +197,17 @@ class LessonService:
 
             next_unit_unlocked = False
 
+            # Always record activity & update streak on lesson completion
+            UserService.record_activity(user_refreshed)
+
             if not already_completed:
                 UserService.add_xp(user_refreshed, xp_earned)
-                UserService.record_activity(user_refreshed)
 
                 unit_progress.completed_lessons += 1
                 total_unit_lessons = unit.lessons.count()
 
                 if unit_progress.completed_lessons >= total_unit_lessons:
+                    unit_progress.completed_lessons = total_unit_lessons
                     unit_progress.is_completed = True
                     unit_progress.crown_level += 1
 
@@ -242,15 +252,18 @@ class LessonService:
             return {
                 "lesson_history_id": str(history.id),
                 "xp_earned": xp_earned,
+                "xp_awarded": xp_earned,
                 "total_xp": user_refreshed.xp,
+                "streak": user_refreshed.streak_count,
                 "streak_count": user_refreshed.streak_count,
                 "hearts_remaining": user_refreshed.hearts,
+                "next_unit_unlocked": next_unit_unlocked,
+                "is_replay": already_completed,
                 "unit_progress": {
                     "completed_lessons": unit_progress.completed_lessons,
                     "total_lessons": unit.lessons.count(),
                     "is_completed": unit_progress.is_completed,
                     "crown_level": unit_progress.crown_level,
                 },
-                "next_unit_unlocked": next_unit_unlocked,
-                "is_replay": already_completed,
             }
+
