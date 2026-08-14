@@ -21,7 +21,7 @@ class RegisterValidator:
         age = payload.get("age")
         name = payload.get("name") or payload.get("full_name")
 
-        if not all((email, password)):
+        if not email or not password:
             raise ValidationException(
                 "Email and password are required."
             )
@@ -33,14 +33,21 @@ class RegisterValidator:
 
         email = email.strip().lower()
 
-        try:
-            age_int = int(age)
-            if not 1 <= age_int <= 120:
-                raise ValueError()
-        except (ValueError, TypeError):
-            raise ValidationException(
-                "Age must be a valid integer between 1 and 120."
-            )
+        validated_data = {
+            "email": email,
+            "password": password,
+        }
+
+        if age is not None and str(age).strip() != "":
+            try:
+                age_int = int(age)
+                if not 1 <= age_int <= 120:
+                    raise ValueError()
+                validated_data["age"] = age_int
+            except (ValueError, TypeError):
+                raise ValidationException(
+                    "Age must be a valid integer between 1 and 120."
+                )
 
         if not cls.EMAIL_PATTERN.match(email):
             raise ValidationException(
@@ -51,12 +58,6 @@ class RegisterValidator:
             raise ValidationException(
                 "Password must contain at least 8 characters."
             )
-
-        validated_data = {
-            "age": age_int,
-            "email": email,
-            "password": password,
-        }
 
         if name and isinstance(name, str) and name.strip():
             validated_data["name"] = name.strip()

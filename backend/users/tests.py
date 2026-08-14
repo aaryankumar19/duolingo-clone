@@ -132,6 +132,16 @@ class AuthArchitectureTestCase(TestCase):
         self.assertEqual(validated["age"], 22)
         self.assertNotIn("username", validated)
 
+    def test_register_validator_optional_name_and_age(self):
+        payload = {
+            "email": "noname@domain.com",
+            "password": "supersecretpassword",
+        }
+        validated = RegisterValidator.validate(payload)
+        self.assertEqual(validated["email"], "noname@domain.com")
+        self.assertNotIn("name", validated)
+        self.assertNotIn("age", validated)
+
     def test_register_validator_invalid_email(self):
         payload = {
             "email": "invalid-email",
