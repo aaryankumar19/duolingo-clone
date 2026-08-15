@@ -243,9 +243,9 @@ class LessonService:
 
                 unit_progress.save()
 
-                # Check achievements
-                from gamification.services import AchievementService
-                AchievementService.check_and_award(user_refreshed)
+            # Check achievements (XP, streak, lessons completed)
+            from gamification.services import AchievementService
+            AchievementService.check_and_award(user_refreshed)
 
             user_refreshed.refresh_from_db()
 

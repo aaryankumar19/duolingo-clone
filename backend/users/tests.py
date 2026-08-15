@@ -45,6 +45,47 @@ class UserServiceTestCase(TestCase):
         # Refill hearts
         UserService.refill_hearts(self.user)
         self.assertEqual(self.user.hearts, 5)
+        self.assertIsNone(self.user.last_heart_loss_at)
+
+    def test_passive_heart_refill_over_time(self):
+        now = timezone.now()
+
+        # Deduct 1 heart -> hearts = 4
+        UserService.deduct_heart(self.user)
+        self.assertEqual(self.user.hearts, 4)
+        self.assertIsNotNone(self.user.last_heart_loss_at)
+
+        # 2 hours passed -> hearts should still be 4
+        self.user.last_heart_loss_at = now - timedelta(hours=2)
+        self.user.save(update_fields=["last_heart_loss_at"])
+        UserService.sync_passive_hearts(self.user)
+        self.assertEqual(self.user.hearts, 4)
+
+        # 4.5 hours passed -> 1 heart refilled (hearts = 5), last_heart_loss_at reset to None
+        self.user.last_heart_loss_at = now - timedelta(hours=4, minutes=30)
+        self.user.save(update_fields=["last_heart_loss_at"])
+        UserService.sync_passive_hearts(self.user)
+        self.assertEqual(self.user.hearts, 5)
+        self.assertIsNone(self.user.last_heart_loss_at)
+
+        # Multi-heart refill with partial remainder
+        # Deduct 3 hearts -> hearts = 2
+        for _ in range(3):
+            UserService.deduct_heart(self.user)
+        self.assertEqual(self.user.hearts, 2)
+
+        # Set loss time 9 hours ago (2 full 4-hour intervals = 8 hours, 1 hour remainder)
+        self.user.last_heart_loss_at = now - timedelta(hours=9)
+        self.user.save(update_fields=["last_heart_loss_at"])
+        UserService.sync_passive_hearts(self.user)
+
+        # Should gain 2 hearts -> hearts = 4
+        self.assertEqual(self.user.hearts, 4)
+        # Remaining time till next heart should be ~3 hours (9 - 8 = 1 hour elapsed since last interval)
+        refill_info = UserService.get_heart_refill_info(self.user)
+        self.assertAlmostEqual(
+            refill_info["seconds_to_next_heart"], 3 * 3600, delta=2
+        )
 
     def test_update_user_streak(self):
         today = timezone.localdate()
@@ -64,12 +105,28 @@ class UserServiceTestCase(TestCase):
         UserService.update_streak(self.user)
         self.assertEqual(self.user.streak_count, 2)
 
-        # Active 2 days ago -> streak resets to 1
+        # Active 2 days ago -> streak resets to 1 upon new activity
         self.user.last_active_date = two_days_ago
+        self.user.streak_count = 5
         self.user.save()
 
         UserService.update_streak(self.user)
         self.assertEqual(self.user.streak_count, 1)
+
+    def test_sync_user_streak_lazy_reset(self):
+        today = timezone.localdate()
+        two_days_ago = today - timedelta(days=2)
+
+        # User was active 2 days ago with a 5-day streak
+        self.user.last_active_date = two_days_ago
+        self.user.streak_count = 5
+        self.user.save()
+
+        # Fetching profile lazily resets streak to 0 due to inactivity yesterday
+        profile = UserService.get_profile(self.user)
+        self.assertEqual(profile["streak"], 0)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.streak_count, 0)
 
     def test_add_user_xp(self):
         UserService.add_xp(self.user, 50)

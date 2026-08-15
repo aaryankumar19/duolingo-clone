@@ -7,6 +7,9 @@ import { ES, US, FR, JP, DE, IN, KR, IT, CN, RU } from 'country-flag-icons/react
 import { Button } from '@/components/ui/Button';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 
+import { learningApi } from '@/lib/api/learning/api';
+import { lessonApi } from '@/lib/api/lesson/api';
+
 const COURSES = [
   { id: 'spanish', name: 'Spanish', count: '42M learners', Flag: ES, available: true },
   { id: 'english', name: 'English', count: '30M learners', Flag: US, available: false },
@@ -48,6 +51,7 @@ export default function WelcomePage() {
   const [selectedLevel, setSelectedLevel] = useState<string>('new');
   const [startPlacement, setStartPlacement] = useState<'scratch' | 'placement'>('scratch');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -56,7 +60,7 @@ export default function WelcomePage() {
     }, 3000);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 3 && selectedCourse !== 'spanish') {
       showToast('Only Spanish course is available right now!');
       return;
@@ -69,7 +73,22 @@ export default function WelcomePage() {
     if (step < 5) {
       setStep(step + 1);
     } else {
-      router.push('/lesson/1');
+      if (isNavigating) return;
+      setIsNavigating(true);
+      try {
+        const pathData = await learningApi.getLearningPath();
+        const firstUnit = pathData?.sections?.[0]?.units?.[0];
+        if (firstUnit) {
+          const nextLesson = await lessonApi.getNextLesson(firstUnit.id);
+          if (nextLesson?.id) {
+            router.push(`/lesson/${nextLesson.id}?skillId=${firstUnit.id}`);
+            return;
+          }
+        }
+        router.push('/learn');
+      } catch {
+        router.push('/learn');
+      }
     }
   };
 

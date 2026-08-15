@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { learningApi } from '@/lib/api/learning/api';
 import { BackendCourse } from '@/types/learning';
-import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, Loader2, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   ES,
@@ -98,9 +98,9 @@ export default function CoursesPage() {
     onMutate: (courseId) => {
       setSelectingId(courseId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['courses'] });
-      queryClient.invalidateQueries({ queryKey: ['learningPath'] });
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: ['learningPath'] });
+      await queryClient.refetchQueries({ queryKey: ['courses'] });
       router.push('/learn');
     },
     onError: () => {
@@ -237,9 +237,10 @@ export default function CoursesPage() {
         <div className="mt-12 text-center">
           <button
             onClick={() => router.push('/learn')}
-            className="text-sm font-black text-[#778e9a] hover:text-white uppercase tracking-widest transition cursor-pointer"
+            className="inline-flex items-center gap-2 text-sm font-black text-[#778e9a] hover:text-white uppercase tracking-widest transition cursor-pointer group"
           >
-            ← Back to Learn
+            <ArrowLeft className="w-4 h-4 stroke-[3] group-hover:-translate-x-1 transition-transform" />
+            <span>Back to Learn</span>
           </button>
         </div>
       </div>

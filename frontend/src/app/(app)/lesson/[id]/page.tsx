@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { useLesson } from '@/hooks/use-lesson';
 import { LessonPlayer } from '@/components/lesson/LessonPlayer';
 import { OutOfHeartsModal } from '@/components/lesson/modals/OutOfHeartsModal';
@@ -45,12 +47,13 @@ export default function LessonPage() {
           <p className="text-gray-700 font-extrabold text-lg mb-4">
             {errorMsg || 'Failed to load lesson.'}
           </p>
-          <a
+          <Link
             href="/learn"
-            className="inline-block px-6 py-3 rounded-2xl bg-[#58CC02] text-white font-extrabold shadow-md hover:bg-[#46A302] transition"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#58CC02] text-white font-extrabold shadow-md hover:bg-[#46A302] transition group"
           >
-            ← Back to Learning Path
-          </a>
+            <ArrowLeft className="w-4 h-4 stroke-[3] group-hover:-translate-x-1 transition-transform" />
+            <span>Back to Learning Path</span>
+          </Link>
         </div>
       </div>
     );

@@ -85,6 +85,7 @@ class CourseService:
     def get_current_course(user: User) -> Course | None:
         """
         Returns the user's currently active course (most recently updated/selected course).
+        If the user has no enrolled course, auto-selects the first active course.
         """
         user_course = (
             UserCourse.objects
@@ -93,7 +94,14 @@ class CourseService:
             .order_by("-updated_at")
             .first()
         )
-        return user_course.course if user_course else None
+        if user_course:
+            return user_course.course
+
+        default_course = Course.objects.filter(is_active=True).order_by("title").first()
+        if default_course:
+            return CourseService.select_course(user, default_course.id)
+
+        return None
 
     @staticmethod
     def get_current_path(user: User) -> dict | None:

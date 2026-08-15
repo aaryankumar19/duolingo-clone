@@ -80,31 +80,102 @@ class AuthService:
 class UserService:
 
     @staticmethod
+    def sync_passive_hearts(user: User) -> User:
+        """
+        Synchronizes time-based heart refill (1 heart every 4 hours).
+        Updates user in DB if hearts were regenerated.
+        """
+        if user.hearts >= user.max_hearts:
+            if user.last_heart_loss_at is not None:
+                user.last_heart_loss_at = None
+                user.save(update_fields=["last_heart_loss_at", "updated_at"])
+            return user
+
+        now = timezone.now()
+        last_loss = user.last_heart_loss_at or user.updated_at or now
+        elapsed = now - last_loss
+        interval = timedelta(hours=4)
+
+        if elapsed < interval:
+            return user
+
+        hearts_gained = int(elapsed // interval)
+        if hearts_gained <= 0:
+            return user
+
+        with transaction.atomic():
+            user_refreshed = User.objects.select_for_update().get(pk=user.pk)
+            if user_refreshed.hearts >= user_refreshed.max_hearts:
+                return user_refreshed
+
+            curr_last_loss = (
+                user_refreshed.last_heart_loss_at or user_refreshed.updated_at or now
+            )
+            curr_elapsed = now - curr_last_loss
+            actual_gained = int(curr_elapsed // interval)
+            if actual_gained <= 0:
+                return user_refreshed
+
+            new_hearts = min(
+                user_refreshed.max_hearts, user_refreshed.hearts + actual_gained
+            )
+            if new_hearts >= user_refreshed.max_hearts:
+                user_refreshed.hearts = user_refreshed.max_hearts
+                user_refreshed.last_heart_loss_at = None
+            else:
+                user_refreshed.hearts = new_hearts
+                user_refreshed.last_heart_loss_at = curr_last_loss + (
+                    actual_gained * interval
+                )
+
+            user_refreshed.save(
+                update_fields=["hearts", "last_heart_loss_at", "updated_at"]
+            )
+
+            user.hearts = user_refreshed.hearts
+            user.last_heart_loss_at = user_refreshed.last_heart_loss_at
+            return user_refreshed
+
+    @staticmethod
+    def get_heart_refill_info(user: User) -> dict:
+        UserService.sync_passive_hearts(user)
+        if user.hearts >= user.max_hearts or not user.last_heart_loss_at:
+            return {
+                "next_heart_refill_at": None,
+                "seconds_to_next_heart": None,
+            }
+
+        now = timezone.now()
+        interval = timedelta(hours=4)
+        next_refill_at = user.last_heart_loss_at + interval
+        seconds_left = max(0, int((next_refill_at - now).total_seconds()))
+
+        return {
+            "next_heart_refill_at": next_refill_at.isoformat(),
+            "seconds_to_next_heart": seconds_left,
+        }
+
+    @staticmethod
     def deduct_heart(user: User) -> bool:
+        UserService.sync_passive_hearts(user)
         now = timezone.now()
 
-        updated = (
-            User.objects.filter(
-                pk=user.pk,
-                hearts__gt=0,
-            ).update(
-                hearts=F("hearts") - 1,
-                last_heart_loss_at=now,
-                updated_at=now,
+        with transaction.atomic():
+            user_refreshed = User.objects.select_for_update().get(pk=user.pk)
+            if user_refreshed.hearts <= 0:
+                return False
+
+            user_refreshed.hearts -= 1
+            if user_refreshed.last_heart_loss_at is None:
+                user_refreshed.last_heart_loss_at = now
+
+            user_refreshed.save(
+                update_fields=["hearts", "last_heart_loss_at", "updated_at"]
             )
-        )
 
-        if updated == 0:
-            return False
-
-        user.refresh_from_db(
-            fields=[
-                "hearts",
-                "last_heart_loss_at",
-                "updated_at",
-            ]
-        )
-        return True
+            user.hearts = user_refreshed.hearts
+            user.last_heart_loss_at = user_refreshed.last_heart_loss_at
+            return True
 
     @staticmethod
     def refill_hearts(user: User) -> None:
@@ -112,6 +183,7 @@ class UserService:
 
         User.objects.filter(pk=user.pk).update(
             hearts=F("max_hearts"),
+            last_heart_loss_at=None,
             updated_at=now,
         )
 
@@ -119,6 +191,7 @@ class UserService:
             fields=[
                 "hearts",
                 "max_hearts",
+                "last_heart_loss_at",
                 "updated_at",
             ]
         )
@@ -130,6 +203,7 @@ class UserService:
         """
         with transaction.atomic():
             user_refreshed = User.objects.select_for_update().get(pk=user.pk)
+            UserService.sync_passive_hearts(user_refreshed)
 
             if user_refreshed.hearts >= user_refreshed.max_hearts:
                 raise ValidationException(
@@ -147,9 +221,14 @@ class UserService:
 
             user_refreshed.gems = F("gems") - 100
             user_refreshed.hearts = F("max_hearts")
-            user_refreshed.save(update_fields=["gems", "hearts", "updated_at"])
+            user_refreshed.last_heart_loss_at = None
+            user_refreshed.save(
+                update_fields=["gems", "hearts", "last_heart_loss_at", "updated_at"]
+            )
 
-            user_refreshed.refresh_from_db(fields=["gems", "hearts", "max_hearts"])
+            user_refreshed.refresh_from_db(
+                fields=["gems", "hearts", "max_hearts", "last_heart_loss_at"]
+            )
 
             return {
                 "hearts": user_refreshed.hearts,
@@ -158,13 +237,36 @@ class UserService:
             }
 
     @staticmethod
+    def sync_streak(user: User) -> None:
+        """
+        Lazily syncs the user's streak. If the user missed yesterday or earlier,
+        resets their streak_count to 0.
+        """
+        today = timezone.localdate()
+        yesterday = today - timedelta(days=1)
+
+        if user.last_active_date is None:
+            if user.streak_count != 0:
+                user.streak_count = 0
+                user.save(update_fields=["streak_count", "updated_at"])
+            return
+
+        if user.last_active_date < yesterday:
+            if user.streak_count != 0:
+                user.streak_count = 0
+                user.save(update_fields=["streak_count", "updated_at"])
+
+    @staticmethod
     def update_streak(user: User) -> None:
         today = timezone.localdate()
+        yesterday = today - timedelta(days=1)
+
+        UserService.sync_streak(user)
 
         if user.last_active_date == today:
             return
 
-        if user.last_active_date == today - timedelta(days=1):
+        if user.last_active_date == yesterday:
             new_streak = user.streak_count + 1
         else:
             new_streak = 1
@@ -230,6 +332,9 @@ class UserService:
 
     @staticmethod
     def get_profile(user: User) -> dict:
+        UserService.sync_streak(user)
+        UserService.sync_passive_hearts(user)
+        refill_info = UserService.get_heart_refill_info(user)
         completed_skills_count = UserUnitProgress.objects.filter(
             user=user, is_completed=True
         ).count()
@@ -244,6 +349,9 @@ class UserService:
                 "xp": user.xp,
                 "gems": user.gems,
                 "hearts": user.hearts,
+                "max_hearts": user.max_hearts,
+                "next_heart_refill_at": refill_info["next_heart_refill_at"],
+                "seconds_to_next_heart": refill_info["seconds_to_next_heart"],
                 "streak": user.streak_count,
                 "streak_count": user.streak_count,
                 "created_at": user.created_at.isoformat(),
@@ -253,6 +361,9 @@ class UserService:
             "xp": user.xp,
             "gems": user.gems,
             "hearts": user.hearts,
+            "max_hearts": user.max_hearts,
+            "next_heart_refill_at": refill_info["next_heart_refill_at"],
+            "seconds_to_next_heart": refill_info["seconds_to_next_heart"],
             "streak": user.streak_count,
             "streak_count": user.streak_count,
             "completed_skills_count": completed_skills_count,
@@ -263,6 +374,8 @@ class UserService:
                 "gems": user.gems,
                 "hearts": user.hearts,
                 "max_hearts": user.max_hearts,
+                "next_heart_refill_at": refill_info["next_heart_refill_at"],
+                "seconds_to_next_heart": refill_info["seconds_to_next_heart"],
                 "completed_skills_count": completed_skills_count,
             },
         }

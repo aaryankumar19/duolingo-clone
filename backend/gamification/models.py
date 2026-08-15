@@ -58,6 +58,12 @@ class UserAchievement(models.Model):
     Junction table mapping unlocked achievements to users.
     """
 
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -74,11 +80,15 @@ class UserAchievement(models.Model):
         auto_now_add=True,
     )
 
-    pk = models.CompositePrimaryKey("user_id", "achievement_id")
-
     class Meta:
         db_table = "user_achievements"
         ordering = ["-unlocked_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "achievement"],
+                name="unique_user_achievement",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user.username} unlocked {self.achievement.title}"

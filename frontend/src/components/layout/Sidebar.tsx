@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Home, Trophy, User, ShoppingBag, Scroll, Languages, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/use-auth-store';
+import { Modal } from '@/components/ui/Modal';
 
 const NAV_ITEMS = [
   { label: 'LEARN', href: '/learn', icon: Home, color: 'text-[#1cb0f6]' },
@@ -18,7 +19,10 @@ const NAV_ITEMS = [
   { label: 'MORE', href: '#', icon: MoreHorizontal, color: 'text-[#afafaf]' },
 ];
 
-const MoreDropdown: React.FC<{ item: typeof NAV_ITEMS[number] }> = ({ item }) => {
+const MoreDropdown: React.FC<{
+  item: typeof NAV_ITEMS[number];
+  onOpenComingSoon: (feature: string) => void;
+}> = ({ item, onOpenComingSoon }) => {
   const { logout } = useAuthStore();
 
   return (
@@ -44,11 +48,10 @@ const MoreDropdown: React.FC<{ item: typeof NAV_ITEMS[number] }> = ({ item }) =>
       <div className="absolute left-full bottom-0 pl-2 hidden group-hover:block z-50">
         <div className="w-72 bg-[#202f36] border-2 border-[#2b3840] rounded-2xl py-2 shadow-2xl flex flex-col">
           {/* Duolingo English Test */}
-          <a
-            href="https://englishtest.duolingo.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-3.5 flex items-center gap-4 hover:bg-[#2b3840] transition-colors rounded-t-xl"
+          <button
+            type="button"
+            onClick={() => onOpenComingSoon('Duolingo English Test')}
+            className="px-4 py-3.5 flex items-center gap-4 hover:bg-[#2b3840] transition-colors rounded-t-xl text-left w-full cursor-pointer"
           >
             {/* Custom SVG Rosette */}
             <svg viewBox="0 0 32 32" className="w-8 h-8 shrink-0">
@@ -80,14 +83,13 @@ const MoreDropdown: React.FC<{ item: typeof NAV_ITEMS[number] }> = ({ item }) =>
             <span className="font-extrabold text-white text-xs tracking-wider uppercase">
               DUOLINGO ENGLISH TEST
             </span>
-          </a>
+          </button>
 
           {/* Schools */}
-          <a
-            href="https://schools.duolingo.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-3.5 flex items-center gap-4 hover:bg-[#2b3840] transition-colors"
+          <button
+            type="button"
+            onClick={() => onOpenComingSoon('Schools')}
+            className="px-4 py-3.5 flex items-center gap-4 hover:bg-[#2b3840] transition-colors text-left w-full cursor-pointer"
           >
             {/* Custom SVG Globe */}
             <svg viewBox="0 0 32 32" className="w-8 h-8 shrink-0">
@@ -111,7 +113,7 @@ const MoreDropdown: React.FC<{ item: typeof NAV_ITEMS[number] }> = ({ item }) =>
             <span className="font-extrabold text-white text-xs tracking-wider uppercase">
               SCHOOLS
             </span>
-          </a>
+          </button>
 
           {/* Divider */}
           <div className="border-t-2 border-[#2b3840] my-1" />
@@ -125,20 +127,19 @@ const MoreDropdown: React.FC<{ item: typeof NAV_ITEMS[number] }> = ({ item }) =>
           </Link>
 
           {/* Help */}
-          <a
-            href="https://support.duolingo.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-3 flex items-center hover:bg-[#2b3840] transition-colors font-extrabold text-[#778e9a] hover:text-white uppercase tracking-wider text-xs"
+          <button
+            type="button"
+            onClick={() => onOpenComingSoon('Help Center')}
+            className="px-4 py-3 flex items-center hover:bg-[#2b3840] transition-colors font-extrabold text-[#778e9a] hover:text-white uppercase tracking-wider text-xs text-left w-full cursor-pointer"
           >
             HELP
-          </a>
+          </button>
 
           {/* Log Out */}
           <button
             type="button"
             onClick={logout}
-            className="px-4 py-3 flex items-center hover:bg-[#2b3840] transition-colors font-extrabold text-[#778e9a] hover:text-white uppercase tracking-wider text-xs text-left w-full rounded-b-xl"
+            className="px-4 py-3 flex items-center hover:bg-[#2b3840] transition-colors font-extrabold text-[#778e9a] hover:text-white uppercase tracking-wider text-xs text-left w-full rounded-b-xl cursor-pointer"
           >
             LOG OUT
           </button>
@@ -150,51 +151,91 @@ const MoreDropdown: React.FC<{ item: typeof NAV_ITEMS[number] }> = ({ item }) =>
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
+  const [comingSoonFeature, setComingSoonFeature] = useState<string | null>(null);
 
   return (
-    <aside className="hidden md:flex flex-col w-64 h-screen border-r-2 border-[#2b3840] px-4 py-6 fixed left-0 top-0 bg-[#131f24] z-40 select-none">
-      <div className="flex-1">
-        {/* Logo */}
-        <Link href="/learn" className="flex items-center gap-3 px-4 mb-8">
-          <Image
-            src="/duolingo_logo.svg"
-            alt="duolingo"
-            width={140}
-            height={32}
-            priority
-            className="h-8 w-auto object-contain"
-          />
-        </Link>
+    <>
+      <aside className="hidden md:flex flex-col w-64 h-screen border-r-2 border-[#2b3840] px-4 py-6 fixed left-0 top-0 bg-[#131f24] z-40 select-none">
+        <div className="flex-1">
+          {/* Logo */}
+          <Link href="/learn" className="flex items-center gap-3 px-4 mb-8">
+            <Image
+              src="/duolingo_logo.svg"
+              alt="duolingo"
+              width={140}
+              height={32}
+              priority
+              className="h-8 w-auto object-contain"
+            />
+          </Link>
 
-        {/* Navigation Links */}
-        <nav className="flex flex-col gap-1.5">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
+          {/* Navigation Links */}
+          <nav className="flex flex-col gap-1.5">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
 
-            if (item.label === 'MORE') {
-              return <MoreDropdown key={item.label} item={item} />;
-            }
+              if (item.label === 'MORE') {
+                return (
+                  <MoreDropdown
+                    key={item.label}
+                    item={item}
+                    onOpenComingSoon={(feature) => setComingSoonFeature(feature)}
+                  />
+                );
+              }
 
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-4 px-4 py-3 rounded-2xl font-extrabold tracking-wider text-xs border-2 transition-all duration-150 uppercase',
-                  isActive
-                    ? 'border-[#84d8ff] bg-[#202f36] text-[#1cb0f6]'
-                    : 'border-transparent text-[#778e9a] hover:bg-[#202f36] hover:text-white'
-                )}
-              >
-                <Icon className={cn('w-6 h-6', item.color)} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-    </aside>
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-4 px-4 py-3 rounded-2xl font-extrabold tracking-wider text-xs border-2 transition-all duration-150 uppercase',
+                    isActive
+                      ? 'border-[#84d8ff] bg-[#202f36] text-[#1cb0f6]'
+                      : 'border-transparent text-[#778e9a] hover:bg-[#202f36] hover:text-white'
+                  )}
+                >
+                  <Icon className={cn('w-6 h-6', item.color)} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </aside>
+
+      {/* Coming Soon Modal */}
+      <Modal
+        isOpen={!!comingSoonFeature}
+        onClose={() => setComingSoonFeature(null)}
+        title="Coming Soon!"
+      >
+        <div className="flex flex-col items-center text-center p-2 gap-4 select-none">
+          <div className="w-24 h-24 relative animate-bounce">
+            <Image
+              src="/duo/ad9ec13f2b161e008ab1.svg"
+              alt="Duo"
+              width={96}
+              height={96}
+              className="w-full h-full object-contain drop-shadow-md"
+            />
+          </div>
+          <h3 className="text-lg font-extrabold text-[#4b4b4b]">
+            {comingSoonFeature} is coming soon!
+          </h3>
+          <p className="text-xs font-bold text-[#778e9a] max-w-xs leading-relaxed">
+            Duo is hard at work building this feature for you. Check back soon!
+          </p>
+          <button
+            onClick={() => setComingSoonFeature(null)}
+            className="w-full mt-2 py-3 bg-[#58cc02] hover:bg-[#61e002] text-white font-extrabold text-xs tracking-widest uppercase rounded-2xl shadow-[0_4px_0_0_#46a302] active:shadow-none active:translate-y-[4px] transition cursor-pointer"
+          >
+            GOT IT
+          </button>
+        </div>
+      </Modal>
+    </>
   );
 };
 

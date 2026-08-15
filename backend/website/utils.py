@@ -2,7 +2,7 @@ from functools import wraps
 from django.http import HttpRequest
 
 from common.exceptions import AuthenticationException
-from users.services import SessionService
+from users.services import SessionService, UserService
 
 
 def require_auth(view_func):
@@ -38,6 +38,7 @@ def require_auth(view_func):
             raise AuthenticationException("Authentication token is required.")
 
         session = SessionService.get_session_by_raw_token(raw_token)
+        UserService.sync_passive_hearts(session.user)
 
         request.user = session.user
         request.session_obj = session

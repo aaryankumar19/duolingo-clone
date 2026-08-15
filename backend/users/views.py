@@ -54,6 +54,7 @@ class LoginView(JsonUtilsMixin, View):
 
         data = LoginValidator.validate(payload)
         user = AuthService.authenticate(**data)
+        UserService.sync_streak(user)
 
         auth_token = SessionService.create_session(user, ttl_days=31)
 

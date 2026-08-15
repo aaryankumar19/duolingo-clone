@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   Star, Lock, Crown, ChevronRight, Loader2,
-  BookOpen, Zap, Gift, Heart, Check
+  BookOpen, Zap, Gift, Heart, Check, ArrowLeft
 } from 'lucide-react';
 import { useAuthStore } from '@/store/use-auth-store';
 import { useLearningPath } from '@/hooks/use-learning-path';
@@ -283,6 +283,8 @@ interface StickyBannerProps {
 function StickyBanner({
   sectionIdx, unitIdx, globalUnitNum, sectionTitle, palette, prevPalette, isTransitioning,
 }: StickyBannerProps) {
+  const router = useRouter();
+
   return (
     <div
       className="sticky z-40 w-full rounded-3xl shadow-xl mb-8 overflow-hidden"
@@ -303,11 +305,12 @@ function StickyBanner({
         {/* Left: back to /sections link + section / unit label + title */}
         <div className="flex flex-col gap-0.5">
           <button
-            onClick={() => window.location.href = '/sections'}
-            className="flex items-center gap-2 text-[11px] font-black tracking-widest uppercase opacity-90 hover:opacity-100 transition-opacity cursor-pointer group text-left"
+            onClick={() => router.push('/sections')}
+            className="inline-flex items-center gap-2 text-[11px] sm:text-xs font-black tracking-widest uppercase text-white/90 hover:text-white transition cursor-pointer group text-left w-fit py-1 px-2.5 -ml-2.5 rounded-xl hover:bg-white/15 active:scale-95"
+            title="Go to sections overview"
           >
-            <span className="text-sm font-black group-hover:-translate-x-0.5 transition-transform">←</span>
-            <span>SECTION {sectionIdx + 1}, UNIT {sectionIdx + 1}</span>
+            <ArrowLeft className="w-4 h-4 stroke-[3] group-hover:-translate-x-1 transition-transform shrink-0" />
+            <span>SECTION {sectionIdx + 1}, UNIT {globalUnitNum}</span>
           </button>
           <h1 className="text-lg sm:text-xl font-extrabold tracking-wide leading-tight">
             {sectionTitle}
@@ -315,7 +318,7 @@ function StickyBanner({
         </div>
 
         {/* Right: Guidebook button */}
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 border-2 border-white/40 rounded-2xl font-extrabold text-xs uppercase tracking-wider transition cursor-pointer shrink-0">
+        <button className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 border-2 border-white/40 rounded-2xl font-extrabold text-xs uppercase tracking-wider transition cursor-pointer shrink-0 active:scale-95">
           <BookOpen className="w-4 h-4" />
           <span className="hidden sm:inline">Guidebook</span>
         </button>
@@ -331,9 +334,21 @@ export default function LearnPage() {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [startingUnitId, setStartingUnitId] = useState<string | null>(null);
 
-  // Track which SECTION is in view — the unit number inside the banner
-  // is the section index and only changes at section boundaries, NOT per pebble.
-  const [activeSectionIdx, setActiveSectionIdx] = useState(0);
+  // Track active section and unit state from scroll
+  const [activeBanner, setActiveBanner] = useState<{
+    sectionIdx: number;
+    unitIdx: number;
+    globalUnitNum: number;
+    unitTitle: string;
+    paletteIdx: number;
+  }>({
+    sectionIdx: 0,
+    unitIdx: 0,
+    globalUnitNum: 1,
+    unitTitle: '',
+    paletteIdx: 0,
+  });
+
   const [prevPaletteIdx, setPrevPaletteIdx] = useState<number | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -378,42 +393,53 @@ export default function LearnPage() {
     }
   };
 
-  // One ref per SECTION (not per unit/pebble)
-  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  // Map of refs per UNIT (not per section) to accurately update unit data on scroll
+  const unitRefs = useRef<{ [unitId: string]: HTMLDivElement | null }>({});
 
-  // ── IntersectionObserver: track SECTION sentinels only ───────────────────
-  // The banner updates when a new SECTION enters the viewport, not per pebble.
+  // ── IntersectionObserver: track UNIT sentinels ───────────────────────────
+  // Keeps section fixed while user scrolls through units, updating unit title & unit number.
   useEffect(() => {
     if (!pathData) return;
 
     const observers: IntersectionObserver[] = [];
+    let cumulativeUnitCount = 0;
 
-    pathData.sections.forEach((_, sIdx) => {
-      const el = sectionRefs.current[sIdx];
-      if (!el) return;
+    pathData.sections.forEach((section, sIdx) => {
+      section.units.forEach((unit, uIdx) => {
+        cumulativeUnitCount += 1;
+        const currentGlobalNum = cumulativeUnitCount;
+        const el = unitRefs.current[unit.id];
+        if (!el) return;
 
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            setActiveSectionIdx((prev) => {
-              if (prev !== sIdx) {
-                setPrevPaletteIdx(prev % SECTION_PALETTES.length);
-                setIsTransitioning(true);
-                setTimeout(() => setIsTransitioning(false), 400);
-              }
-              return sIdx;
-            });
+        const observer = new IntersectionObserver(
+          ([entry]) => {
+            if (entry.isIntersecting) {
+              setActiveBanner((prev) => {
+                const targetPaletteIdx = sIdx % SECTION_PALETTES.length;
+                if (prev.paletteIdx !== targetPaletteIdx) {
+                  setPrevPaletteIdx(prev.paletteIdx);
+                  setIsTransitioning(true);
+                  setTimeout(() => setIsTransitioning(false), 400);
+                }
+                return {
+                  sectionIdx: sIdx,
+                  unitIdx: uIdx,
+                  globalUnitNum: currentGlobalNum,
+                  unitTitle: unit.title,
+                  paletteIdx: targetPaletteIdx,
+                };
+              });
+            }
+          },
+          {
+            rootMargin: '-20px 0px -55% 0px',
+            threshold: 0,
           }
-        },
-        {
-          // Trigger when the section sentinel enters the top 40% of the viewport
-          rootMargin: '-20px 0px -55% 0px',
-          threshold: 0,
-        }
-      );
+        );
 
-      observer.observe(el);
-      observers.push(observer);
+        observer.observe(el);
+        observers.push(observer);
+      });
     });
 
     return () => observers.forEach((o) => o.disconnect());
@@ -452,14 +478,9 @@ export default function LearnPage() {
   }
 
   const { sections } = pathData;
-  const currentPalette = SECTION_PALETTES[activeSectionIdx % SECTION_PALETTES.length];
-  const prevPalette = prevPaletteIdx !== null ? SECTION_PALETTES[prevPaletteIdx] : null;
-  const currentSection = sections[activeSectionIdx];
-
-  // Pre-size refs array (one per section)
-  if (sectionRefs.current.length !== sections.length) {
-    sectionRefs.current = new Array(sections.length).fill(null);
-  }
+  const currentPalette = SECTION_PALETTES[activeBanner.paletteIdx % SECTION_PALETTES.length];
+  const prevPalette = prevPaletteIdx !== null ? SECTION_PALETTES[prevPaletteIdx % SECTION_PALETTES.length] : null;
+  const displayTitle = activeBanner.unitTitle || sections[0]?.units[0]?.title || sections[0]?.title || '';
 
   return (
     <div
@@ -475,10 +496,10 @@ export default function LearnPage() {
 
         {/* ── STICKY BANNER — single banner, tracks scroll ───────────────── */}
         <StickyBanner
-          sectionIdx={activeSectionIdx}
-          unitIdx={activeSectionIdx}
-          globalUnitNum={activeSectionIdx + 1}
-          sectionTitle={currentSection?.title ?? ''}
+          sectionIdx={activeBanner.sectionIdx}
+          unitIdx={activeBanner.unitIdx}
+          globalUnitNum={activeBanner.globalUnitNum}
+          sectionTitle={displayTitle}
           palette={currentPalette}
           prevPalette={prevPalette}
           isTransitioning={isTransitioning}
@@ -489,13 +510,7 @@ export default function LearnPage() {
           const palette = SECTION_PALETTES[sIdx % SECTION_PALETTES.length];
 
           return (
-            <div key={sIdx} className="w-full">
-              {/* Section-level IntersectionObserver sentinel */}
-              <div
-                ref={(el) => { sectionRefs.current[sIdx] = el; }}
-                className="w-full h-0 pointer-events-none"
-              />
-
+            <div key={section.id || sIdx} className="w-full">
               {/* Unit nodes — alternating zigzag snake, mirrored per section */}
               <div className="w-full flex flex-col items-center relative space-y-10 my-4 mb-14">
                 {section.units.map((unit, uIdx) => {
@@ -509,7 +524,11 @@ export default function LearnPage() {
                   const character = showChar ? LESSON_CHARACTERS[charIdx] : null;
 
                   return (
-                    <div key={unit.id} className="flex justify-center w-full relative">
+                    <div
+                      key={unit.id}
+                      ref={(el) => { unitRefs.current[unit.id] = el; }}
+                      className="flex justify-center w-full relative"
+                    >
                       {/* Character mascot — rendered as sibling to avoid clipping */}
                       {character && snap.side !== 'center' && (
                         <div
@@ -550,7 +569,7 @@ export default function LearnPage() {
                 <div className="w-full flex items-center gap-4 my-8 max-w-md mx-auto">
                   <div className="flex-1 border-t-2 border-[#2b3840]" />
                   <span className="text-xs font-extrabold text-[#52656d] uppercase tracking-widest text-center px-2">
-                    {sections[sIdx + 1]?.title}
+                    SECTION {sIdx + 2}: {sections[sIdx + 1]?.title}
                   </span>
                   <div className="flex-1 border-t-2 border-[#2b3840]" />
                 </div>

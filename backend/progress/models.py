@@ -51,6 +51,12 @@ class UserUnitProgress(models.Model):
         help_text="Current proficiency/crown level for this unit.",
     )
 
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
@@ -59,13 +65,14 @@ class UserUnitProgress(models.Model):
         auto_now=True,
     )
 
-    pk = models.CompositePrimaryKey(
-        "user_id",
-        "unit_id",
-    )
-
     class Meta:
         db_table = "user_unit_progress"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "unit"],
+                name="unique_user_unit_progress",
+            ),
+        ]
 
     def __str__(self):
         return (

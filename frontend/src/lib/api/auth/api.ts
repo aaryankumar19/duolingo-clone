@@ -64,10 +64,18 @@ export const authApi = {
   },
 
   getProfile: async (): Promise<UserProfile> => {
-    const res = await apiClient<{ data: UserProfile }>('/profile/');
-    if (res.data) {
-      useAuthStore.getState().updateUser(res.data);
+    const res = await apiClient<{ data: any }>('/profile/');
+    const data = res.data;
+    if (data) {
+      const userData = data.user || data;
+      const streak = data.streak ?? data.streak_count ?? userData.streak ?? userData.streak_count ?? 0;
+      const profileToUpdate: UserProfile = {
+        ...userData,
+        streak,
+      };
+      useAuthStore.getState().updateUser(profileToUpdate);
+      return profileToUpdate;
     }
-    return res.data;
+    return data;
   },
 };

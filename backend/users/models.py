@@ -152,6 +152,12 @@ class DailyActivity(models.Model):
     Daily activity model tracking daily user progress and XP.
     """
 
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -174,11 +180,15 @@ class DailyActivity(models.Model):
         auto_now=True,
     )
 
-    pk = models.CompositePrimaryKey("user_id", "date")
-
     class Meta:
         db_table = "user_daily_activity"
         ordering = ["-date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "date"],
+                name="unique_user_daily_activity",
+            ),
+        ]
 
     def __str__(self):
         return (

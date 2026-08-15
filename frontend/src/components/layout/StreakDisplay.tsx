@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Flame, Check, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';

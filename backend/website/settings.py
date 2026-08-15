@@ -167,18 +167,74 @@ PASSWORD_HASHERS = [
 ]
 
 JAZZMIN_SETTINGS = {
-    "site_title": "Admin",
-    "site_header": " Dashboard",
+    # Title and branding
+    "site_title": "Duolingo Admin",
+    "site_header": "Admin Panel",
     "site_brand": "Duolingo Clone Admin",
-    "site_icon": "images/logo/favicon.png",
-    "site_logo": "images/logo/favicon.png",
-    "login_logo": "images/logo/favicon.png",
-    "welcome_sign": "Welcome to the Duolingo Clone Admin Panel",
+    "welcome_sign": "Welcome to the Duolingo Admin Panel",
     "copyright": "Duolingo Clone © 2026",
-    "user_avatar": None,
+
+    # Sidebar settings
     "show_sidebar": True,
     "navigation_expanded": True,
-    "hide_apps": [],
-    "hide_models": [],
-    "show_ui_builder": True,
+
+    # Top menu configuration
+    "topmenu_links": [
+        {"name": "Home", "url": "admin:index"},
+    ],
+
+    # Detailed icon mapping with FontAwesome icons
+    "icons": {
+        # Auth app
+        "auth": "fas fa-shield-alt",
+        "auth.group": "fas fa-users-cog",
+        "auth.user": "fas fa-user-shield",
+
+        # Users app
+        "users": "fas fa-users",
+        "users.user": "fas fa-user-graduate",
+        "users.session": "fas fa-key",
+        "users.dailyactivity": "fas fa-calendar-check",
+        "users.usercourse": "fas fa-book-reader",
+
+        # Courses app
+        "courses": "fas fa-language",
+        "courses.course": "fas fa-globe",
+        "courses.section": "fas fa-layer-group",
+        "courses.unit": "fas fa-cubes",
+        "courses.character": "fas fa-smile",
+        "courses.uniticon": "fas fa-icons",
+
+        # Lessons app
+        "lessons": "fas fa-book-open",
+        "lessons.lesson": "fas fa-graduation-cap",
+        "lessons.exercise": "fas fa-pen-nib",
+
+        # Progress app
+        "progress": "fas fa-chart-line",
+        "progress.userunitprogress": "fas fa-tasks",
+        "progress.userlessonhistory": "fas fa-history",
+
+        # Gamification app
+        "gamification": "fas fa-trophy",
+        "gamification.achievement": "fas fa-award",
+        "gamification.userachievement": "fas fa-medal",
+    },
+
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+
+    # Order of apps
+    "order_with_respect_to": [
+        "users",
+        "courses",
+        "lessons",
+        "progress",
+        "gamification",
+        "auth",
+    ],
+
+    # UI Tweaks
+    "changeform_format": "horizontal_tabs",
 }
+

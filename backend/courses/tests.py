@@ -83,6 +83,7 @@ class CoursesTestCase(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_get_current_path_no_course(self):
+        Course.objects.all().update(is_active=False)
         url = reverse("courses:current_path")
         response = self.client.get(url, **self.auth_headers)
         self.assertEqual(response.status_code, 404)
